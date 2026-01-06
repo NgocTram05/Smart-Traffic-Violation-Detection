@@ -1,0 +1,122 @@
+<!-- 
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ Thống Phạt Nguội AI</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #1a1a1a; color: white; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .main-container { max-width: 1400px; margin: 30px auto; }
+        .video-box {
+            border: 4px solid #444;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            background: #000;
+        }
+        .status-panel {
+            background: #2d2d2d;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            height: 100%;
+        }
+        .light-indicator {
+            width: 100px; height: 100px;
+            border-radius: 50%;
+            margin: 0 auto 20px auto;
+            border: 5px solid #555;
+            transition: all 0.3s;
+        }
+        .light-green { background-color: #00ff00; box-shadow: 0 0 30px #00ff00; }
+        .light-red { background-color: #ff0000; box-shadow: 0 0 30px #ff0000; }
+        
+        #light-text { font-size: 2rem; font-weight: bold; }
+        .text-green { color: #00ff00; }
+        .text-red { color: #ff0000; }
+        
+        .btn-toggle { font-size: 1.2rem; padding: 15px 30px; width: 100%; font-weight: bold; }
+    </style>
+</head>
+<body>
+<nav class="navbar navbar-dark bg-dark mb-4 border-bottom border-secondary">
+        <div class="container">
+            <a class="navbar-brand" href="/">📸 HỆ THỐNG PHẠT NGUỘI</a>
+            <div>
+                <a href="/" class="btn btn-success active me-2">🔴 Trực Tiếp</a>
+                <a href="/history" class="btn btn-outline-danger">📂 Xem Lịch Sử</a>
+            </div>
+        </div>
+    </nav>
+    <div class="container main-container">
+        <div class="row">
+            <div class="col-lg-9">
+                <div class="video-box">
+                    <img src="{{ url_for('video_feed') }}" width="100%" />
+                </div>
+            </div>
+
+            <div class="col-lg-3">
+                <div class="status-panel">
+                    <h3 class="mb-4">TRẠNG THÁI ĐÈN</h3>
+                    <div id="traffic-light" class="light-indicator light-green"></div>
+                    <div id="light-text" class="text-green mb-4">ĐÈN XANH</div>
+                    <p class="text-muted">Nhấn phím <b>SPACE</b> để đổi đèn.</p>
+                    <button id="btn-switch" onclick="toggleLight()" class="btn btn-danger btn-toggle shadow">
+                        CHUYỂN ĐÈN
+                    </button>
+                    <hr class="my-4">
+                    <div class="alert alert-dark">
+                        <small>Xe đi đúng sẽ ẩn.<br>Xe vi phạm hiện <span class="text-danger">ĐỎ</span>.</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        let isRed = false;
+
+        // Hàm gọi API đổi đèn
+        function toggleLight() {
+            fetch('/api/toggle_light', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    updateUI(data.is_red);
+                });
+        }
+
+        // Cập nhật giao diện
+        function updateUI(redStatus) {
+            isRed = redStatus;
+            const light = document.getElementById('traffic-light');
+            const text = document.getElementById('light-text');
+            const btn = document.getElementById('btn-switch');
+
+            if (isRed) {
+                light.className = "light-indicator light-red";
+                text.innerText = "ĐÈN ĐỎ";
+                text.className = "text-red";
+                btn.className = "btn btn-success btn-toggle shadow";
+                btn.innerText = "BẬT ĐÈN XANH";
+            } else {
+                light.className = "light-indicator light-green";
+                text.innerText = "ĐÈN XANH";
+                text.className = "text-green";
+                btn.className = "btn btn-danger btn-toggle shadow";
+                btn.innerText = "BẬT ĐÈN ĐỎ";
+            }
+        }
+
+        // Bắt sự kiện phím Space
+        document.addEventListener('keydown', function(event) {
+            if (event.code === 'Space') {
+                event.preventDefault(); // Chặn cuộn trang
+                toggleLight();
+            }
+        });
+    </script>
+</body>
+</html>
+-->

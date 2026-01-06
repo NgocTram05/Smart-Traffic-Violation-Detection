@@ -1,0 +1,19 @@
+# Bỏ qua môi trường ảo
+.venv/
+venv/
+env/
+
+# Bỏ qua file rác của Python 
+__pycache__/
+*.py[cod]
+
+*.mp4
+*.avi
+
+# Bỏ qua ảnh vi phạm 
+Web_Phat_Nguoi/hinh_anh_vi_pham/*
+!Web_Phat_Nguoi/hinh_anh_vi_pham/.gitkeep
+
+# Bỏ qua cài đặt của VS Code 
+.vscode/
+.idea/

@@ -1,0 +1,153 @@
+<!-- 
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Parking Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        body { background-color: #f8f9fa; font-family: 'Segoe UI', sans-serif; }
+        .sidebar { height: 100vh; background: #2c3e50; color: white; padding-top: 20px; position: fixed; width: 250px; }
+        .sidebar a { color: #bdc3c7; text-decoration: none; display: block; padding: 15px 20px; font-size: 1.1rem; }
+        .sidebar a:hover, .sidebar a.active { background: #34495e; color: white; border-left: 4px solid #3498db; }
+        .main-content { margin-left: 250px; padding: 30px; }
+        .video-box { border-radius: 10px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.2); border: 2px solid #34495e; background: black; }
+        .status-card { border: none; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); transition: transform 0.2s; }
+        .status-card:hover { transform: translateY(-5px); }
+        .plate-number { font-size: 2.5rem; font-weight: bold; font-family: 'Consolas', monospace; letter-spacing: 2px; }
+        .table-custom thead { background-color: #34495e; color: white; }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <h3 class="text-center mb-4">🅿️ Smart Parking</h3>
+        <a href="#" class="active"><i class="fas fa-video me-2"></i> Giám sát trực tiếp</a>
+        <a href="#"><i class="fas fa-history me-2"></i> Lịch sử ra vào</a>
+        <a href="#"><i class="fas fa-users me-2"></i> Quản lý cư dân</a>
+        <a href="#"><i class="fas fa-cog me-2"></i> Cài đặt</a>
+    </div>
+
+    <div class="main-content">
+        <div class="container-fluid">
+            
+            <div class="row g-4 mb-4">
+                <div class="col-lg-7">
+                    <div class="video-box text-center">
+                        <img src="{{ url_for('video_feed') }}" width="100%" alt="Camera Stream">
+                    </div>
+                </div>
+
+                <div class="col-lg-5">
+                    <div class="card status-card h-100">
+                        <div class="card-header bg-white border-0 pt-4">
+                            <h5 class="text-muted text-uppercase fw-bold ls-1">Trạng thái hiện tại</h5>
+                        </div>
+                        <div class="card-body text-center">
+                            <div id="status-badge" class="badge bg-secondary mb-3 px-3 py-2 fs-6">Đang chờ...</div>
+                            
+                            <h1 id="plate-display" class="plate-number text-dark mb-2">---</h1>
+                            
+                            <p id="time-display" class="text-muted fs-5"><i class="far fa-clock me-1"></i> --:--:--</p>
+                            
+                            <hr class="my-4">
+                            
+                            <div class="d-grid gap-2">
+                                <button onclick="manualOpen()" class="btn btn-warning btn-lg fw-bold text-white shadow-sm">
+                                    <i class="fas fa-lock-open me-2"></i> MỞ BARIE KHẨN CẤP
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-12">
+                    <div class="card status-card">
+                        <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0 fw-bold"><i class="fas fa-list-alt me-2 text-primary"></i> Nhật ký ra vào gần nhất</h5>
+                            <span class="badge bg-success rounded-pill">Live Update</span>
+                        </div>
+                        <div class="card-body p-0">
+                            <table class="table table-hover table-custom mb-0 align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>Thời gian</th>
+                                        <th>Biển số</th>
+                                        <th>Hành động</th>
+                                        <th>Đối tượng</th>
+                                        <th>Ghi chú</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="history-table-body">
+                                    </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // Hàm cập nhật dữ liệu tự động mỗi 1 giây
+        function updateDashboard() {
+            // 1. Cập nhật trạng thái xe hiện tại
+            fetch('/api/get_latest')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('plate-display').innerText = data.plate;
+                    document.getElementById('time-display').innerText = data.timestamp;
+                    
+                    const badge = document.getElementById('status-badge');
+                    badge.innerText = data.status;
+                    
+                    // Đổi màu badge dựa trên trạng thái
+                    badge.className = `badge bg-${data.color} mb-3 px-3 py-2 fs-6`;
+                });
+
+            // 2. Cập nhật bảng lịch sử
+            fetch('/api/get_history')
+                .then(response => response.json())
+                .then(data => {
+                    const tableBody = document.getElementById('history-table-body');
+                    tableBody.innerHTML = ""; // Xóa cũ
+                    
+                    data.forEach(row => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td>${row.ThoiGian}</td>
+                            <td class="fw-bold text-primary">${row.BienSo}</td>
+                            <td><span class="badge bg-info text-dark">${row.HanhDong}</span></td>
+                            <td>${row.DoiTuong}</td>
+                            <td>${row.GhiChu}</td>
+                        `;
+                        tableBody.appendChild(tr);
+                    });
+                });
+        }
+
+        // Hàm mở barie thủ công
+        function manualOpen() {
+            fetch('/api/manual_open', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    alert(data.message);
+                });
+        }
+
+        // Chạy lặp lại mỗi 1000ms (1 giây)
+        setInterval(updateDashboard, 1000);
+        
+        // Chạy ngay lần đầu
+        updateDashboard();
+    </script>
+
+</body>
+</html>
+-->

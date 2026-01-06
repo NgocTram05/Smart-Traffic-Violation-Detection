@@ -1,0 +1,140 @@
+<!-- 
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lịch Sử Vi Phạm</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@500&display=swap" rel="stylesheet">
+    <style>
+        body { background-color: #1a1a1a; color: white; font-family: 'Segoe UI', sans-serif; }
+        .card { background: #2d2d2d; border: 1px solid #444; color: white; transition: transform 0.2s; }
+        .card:hover { transform: translateY(-5px); border-color: #ff4444; }
+        .img-thumbnail { background-color: #444; border-color: #555; height: 200px; object-fit: cover; width: 100%; }
+        
+        /* Biển số xe */
+        .plate-badge { 
+            font-size: 1.4rem; 
+            font-weight: bold; 
+            color: #ff4444; 
+            background: rgba(0,0,0,0.3);
+            padding: 5px 10px;
+            border-radius: 8px;
+            display: inline-block;
+            border: 1px dashed #ff4444;
+        }
+
+        /* Nút Excel */
+        .btn-excel {
+            background-color: #198754;
+            color: white;
+            font-weight: bold;
+            padding: 10px 20px;
+            border-radius: 30px;
+        }
+        .btn-excel:hover { background-color: #157347; color: white; box-shadow: 0 0 15px #198754; }
+
+        /* Giờ vi phạm */
+        .time-badge {
+            font-family: 'Roboto Mono', monospace;
+            background-color: #444;
+            color: #0dcaf0; /* Màu xanh sáng */
+            padding: 4px 10px; /* Tăng padding chút cho đẹp */
+            border-radius: 4px;
+            font-size: 1rem;
+            letter-spacing: 1px;
+            border: 1px solid #555;
+        }
+        
+        /* Nhãn thời gian (Đã sửa cho sáng lên) */
+        .time-label {
+            color: #cccccc; /* Màu xám sáng */
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-dark mb-4 border-bottom border-secondary sticky-top">
+        <div class="container">
+            <a class="navbar-brand" href="/">📸 HỆ THỐNG PHẠT NGUỘI</a>
+            <div>
+                <a href="/" class="btn btn-outline-light me-2">🔴 Trực Tiếp</a>
+                <a href="/history" class="btn btn-danger active me-2">📂 Lịch Sử Vi Phạm</a>
+                <a href="/stats" class="btn btn-outline-warning">📊 Thống Kê</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <h2 class="mb-3 text-center text-uppercase fw-bold">Danh sách phương tiện vi phạm</h2>
+        
+        <div class="text-center mb-5">
+            <a href="/export_excel" class="btn btn-excel shadow">
+                📥 Xuất Báo Cáo Excel (.xlsx)
+            </a>
+        </div>
+
+        {% if images|length == 0 %}
+            <div class="alert alert-dark text-center border-secondary p-5">
+                <h4>Chưa có dữ liệu vi phạm nào!</h4>
+                <p class="text-muted">Hệ thống chưa ghi nhận trường hợp vượt đèn đỏ nào.</p>
+            </div>
+        {% endif %}
+
+        <div class="row row-cols-1 row-cols-md-3 g-4">
+            {% for img in images %}
+            <div class="col">
+                <div class="card h-100 shadow-sm">
+                    <a href="/image/{{ img }}" target="_blank">
+                        <img src="/image/{{ img }}" class="card-img-top img-thumbnail" alt="Bằng chứng">
+                    </a>
+                    <div class="card-body text-center">
+                        
+                        {% if '_' in img %}
+                            {% set parts = img.split('_') %}
+                            {% set plate = parts[1] %}
+                            {% set raw_time = parts[2].replace('.jpg', '') %}
+                        {% else %}
+                            {% set plate = 'Unknown' %}
+                            {% set raw_time = '000000' %}
+                        {% endif %}
+
+                        <div class="mb-2 text-white-50 small">Biển số vi phạm</div>
+                        <div class="mb-3">
+                            <span class="plate-badge">{{ plate }}</span>
+                        </div>
+                        
+                        <hr class="border-secondary w-50 mx-auto">
+                        
+                        <div class="d-flex justify-content-center align-items-center gap-2">
+                            <span class="time-label">Thời gian:</span>
+                            
+                            {% if raw_time|length == 6 %}
+                                <span class="time-badge">
+                                    {{ raw_time[0:2] }}:{{ raw_time[2:4] }}:{{ raw_time[4:6] }}
+                                </span>
+                            {% else %}
+                                <span class="time-badge">{{ raw_time }}</span>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="d-grid mt-3">
+                            <a href="/image/{{ img }}" target="_blank" class="btn btn-sm btn-outline-secondary">
+                                🔍 Xem ảnh gốc
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <footer class="mt-5 mb-3 text-center text-muted small">
+            &copy; 2026 Smart Traffic System
+        </footer>
+    </div>
+</body>
+</html>
+-->
