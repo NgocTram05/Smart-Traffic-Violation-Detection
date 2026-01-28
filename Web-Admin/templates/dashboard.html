@@ -3,93 +3,143 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Parking Dashboard</title>
+    <title>Hệ Thống Phát Hiện Vi Phạm Giao Thông</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     
     <style>
-        body { background-color: #f8f9fa; font-family: 'Segoe UI', sans-serif; }
-        .sidebar { height: 100vh; background: #2c3e50; color: white; padding-top: 20px; position: fixed; width: 250px; }
-        .sidebar a { color: #bdc3c7; text-decoration: none; display: block; padding: 15px 20px; font-size: 1.1rem; }
-        .sidebar a:hover, .sidebar a.active { background: #34495e; color: white; border-left: 4px solid #3498db; }
-        .main-content { margin-left: 250px; padding: 30px; }
-        .video-box { border-radius: 10px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.2); border: 2px solid #34495e; background: black; }
-        .status-card { border: none; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); transition: transform 0.2s; }
-        .status-card:hover { transform: translateY(-5px); }
-        .plate-number { font-size: 2.5rem; font-weight: bold; font-family: 'Consolas', monospace; letter-spacing: 2px; }
-        .table-custom thead { background-color: #34495e; color: white; }
+        body { background-color: #ffffff; color: #212529; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .main-container { max-width: 1400px; margin: 30px auto; padding: 0 15px; }
+        .video-box {
+            border: 1px solid #dee2e6;
+            background: #ffffff;
+            padding: 10px;
+        }
+        .status-card {
+            background: #ffffff;
+            border: 1px solid #dee2e6;
+        }
+        .plate-number { font-size: 2.5rem; font-weight: bold; font-family: 'Consolas', monospace; letter-spacing: 2px; color: #3d3d3d; }
+        .table-custom thead { background-color: #f8f9fa; color: #495057; border-bottom: 1px solid #dee2e6; }
+        .btn {  }
+        .nav-link i { font-size: 1.4em; }
+        .nav-link { background: none !important; color: #212529 !important; transition: all 0.3s ease; border-bottom: none; }
+        .nav-link:hover { transform: translateY(-2px); }
+        .nav-link.active { border-bottom: 2px solid #212529; }
+        #emergency-btn { background-color: white !important; border: 2px solid black !important; color: black !important; }
+        .navbar { background-color: #ffffff !important; border-bottom: 1px solid #dee2e6; }
+        .navbar-brand { color: #212529 !important; font-weight: bold; font-size: 1.5rem; }
+        .card { border: 1px solid #dee2e6; }
+        .card-header { background-color: #f8f9fa; color: #212529; }
     </style>
 </head>
 <body>
 
-    <div class="sidebar">
-        <h3 class="text-center mb-4">🅿️ Smart Parking</h3>
-        <a href="#" class="active"><i class="fas fa-video me-2"></i> Giám sát trực tiếp</a>
-        <a href="#"><i class="fas fa-history me-2"></i> Lịch sử ra vào</a>
-        <a href="#"><i class="fas fa-users me-2"></i> Quản lý cư dân</a>
-        <a href="#"><i class="fas fa-cog me-2"></i> Cài đặt</a>
-    </div>
-
-    <div class="main-content">
+<nav class="navbar navbar-expand-lg navbar-light bg-white mb-4 border-bottom">
         <div class="container-fluid">
-            
-            <div class="row g-4 mb-4">
-                <div class="col-lg-7">
-                    <div class="video-box text-center">
-                        <img src="{{ url_for('video_feed') }}" width="100%" alt="Camera Stream">
+            <a class="navbar-brand" href="/">
+                HỆ THỐNG NHẬN DIỆN BIỂN SỐ XE
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active btn btn-success me-2" href="/">
+                            <i class="fas fa-video"></i>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link btn btn-outline-secondary me-2" href="/history">
+                            <i class="fas fa-history"></i>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link btn btn-outline-primary me-2" href="/upload_image">
+                            <i class="fas fa-upload"></i>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link btn btn-outline-info me-2" href="/upload_video">
+                            <i class="fas fa-film"></i>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link btn btn-outline-warning" href="/stats">
+                            <i class="fas fa-chart-bar"></i>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid main-container">
+        <div class="row g-4 mb-4">
+            <div class="col-lg-7">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Camera Giám Sát</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="video-box text-center">
+                            <img src="{{ url_for('video_feed') }}" width="100%" alt="Camera Stream" class="img-fluid rounded">
+                        </div>
                     </div>
                 </div>
+            </div>
 
-                <div class="col-lg-5">
-                    <div class="card status-card h-100">
-                        <div class="card-header bg-white border-0 pt-4">
-                            <h5 class="text-muted text-uppercase fw-bold ls-1">Trạng thái hiện tại</h5>
+            <div class="col-lg-5">
+                <div class="card status-card h-100">
+                    <div class="card-header">
+                        <h5 class="mb-0">Trạng Thái Hiện Tại</h5>
+                    </div>
+                    <div class="card-body text-center">
+                        <h1 id="plate-display" class="plate-number text-dark mb-2">---</h1>
+                        
+                        <p id="time-display" class="text-muted fs-5"> --:--:--</p>
+                        
+                        <hr class="my-4">
+                        
+                        <div class="d-grid gap-2">
+                            <button id="emergency-btn" onclick="manualOpen()" class="btn btn-lg fw-bold">
+                                 MỞ BARIE KHẨN CẤP
+                            </button>
                         </div>
-                        <div class="card-body text-center">
-                            <div id="status-badge" class="badge bg-secondary mb-3 px-3 py-2 fs-6">Đang chờ...</div>
-                            
-                            <h1 id="plate-display" class="plate-number text-dark mb-2">---</h1>
-                            
-                            <p id="time-display" class="text-muted fs-5"><i class="far fa-clock me-1"></i> --:--:--</p>
-                            
-                            <hr class="my-4">
-                            
-                            <div class="d-grid gap-2">
-                                <button onclick="manualOpen()" class="btn btn-warning btn-lg fw-bold text-white shadow-sm">
-                                    <i class="fas fa-lock-open me-2"></i> MỞ BARIE KHẨN CẤP
-                                </button>
+                        <div id="captured-plate-container" style="display: none; margin-top: 10px; text-align: center;">
+                            <img id="captured-plate" class="img-fluid" style="max-width: 200px; border: 1px solid #dee2e6;" alt="Biển số đã ghi nhận">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header bg-light text-dark">
+                            <h5 class="mb-0 fw-bold"> Lịch sử nhận diện</h5>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-hover table-custom mb-0 align-middle">
+                                    <thead>
+                                        <tr>
+                                            <th>Thời Gian</th>
+                                            <th>Biển Số</th>
+                                            <th>Hành Động</th>
+                                            <th>Đối Tượng</th>
+                                            <th>Ghi Chú</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="history-table-body">
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
-
-            <div class="row">
-                <div class="col-12">
-                    <div class="card status-card">
-                        <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0 fw-bold"><i class="fas fa-list-alt me-2 text-primary"></i> Nhật ký ra vào gần nhất</h5>
-                            <span class="badge bg-success rounded-pill">Live Update</span>
-                        </div>
-                        <div class="card-body p-0">
-                            <table class="table table-hover table-custom mb-0 align-middle">
-                                <thead>
-                                    <tr>
-                                        <th>Thời gian</th>
-                                        <th>Biển số</th>
-                                        <th>Hành động</th>
-                                        <th>Đối tượng</th>
-                                        <th>Ghi chú</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="history-table-body">
-                                    </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
         </div>
     </div>
 
@@ -145,6 +195,26 @@
         
         // Chạy ngay lần đầu
         updateDashboard();
+        
+        // Event listener cho phím Space để ghi nhận thủ công
+        document.addEventListener('keydown', function(event) {
+            if (event.code === 'Space') {
+                event.preventDefault();
+                fetch('/api/manual_capture', { method: 'POST' })
+                    .then(response => response.json())
+                    .then(data => {
+                        alert(data.message);
+                        if (data.crop_url) {
+                            document.getElementById('captured-plate').src = data.crop_url;
+                            document.getElementById('captured-plate-container').style.display = 'block';
+                        }
+                        updateDashboard(); // Cập nhật lại lịch sử
+                    })
+                    .catch(error => {
+                        alert('Lỗi khi ghi nhận: ' + error);
+                    });
+            }
+        });
     </script>
 
 </body>

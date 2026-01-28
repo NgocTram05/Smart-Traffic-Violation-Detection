@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kết Quả Phát Hiện Vi Phạm - Smart Traffic</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #ffffff; color: #333; }
+        .navbar { background-color: #f8f8f8; border-bottom: 1px solid #ddd; }
+        .navbar-brand { color: #333; }
+        .btn-outline-light { color: #555; border-color: #ddd; }
+        .btn-outline-light:hover { background-color: #e9e9e9; color: #333; }
+        .card { border: 1px solid #ddd; border-radius: 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .badge { border-radius: 3px; }
+    </style>
+</head>
+<body class="bg-light">
+    <nav class="navbar">
+        <div class="container">
+            <a class="navbar-brand" href="/">Smart Traffic</a>
+            <div>
+                <a href="/" class="btn btn-outline-light me-2">Trực tiếp</a>
+                <a href="/upload_image" class="btn btn-outline-light">Upload Ảnh</a>
+                <a href="/upload_video" class="btn btn-outline-light">Upload Video</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-5">
+        {% if error %}
+            <div class="alert alert-danger">
+                <h5>Lỗi: {{ error }}</h5>
+            </div>
+        {% elif plate %}
+            <div class="row justify-content-center">
+                <div class="col-md-8">
+                    <div class="card shadow border border-{{ color }}" style="border-width:4px;">
+                        <div class="card-header" style="background: #f5f5f5; border-bottom: 1px solid #ddd;">
+                            <h5 class="mb-0" style="color: #333;">✅ Kết Quả Phát Hiện Vi Phạm</h5>
+                        </div>
+                        <div class="card-body text-center">
+                            <h2 class="mb-3">{{ plate }}</h2>
+                            <p class="badge bg-{{ color }} fs-6 mb-3">{{ status }}</p>
+                            <p class="text-muted mb-2">Độ rõ: <strong>{{ clarity }}</strong></p>
+                            
+                            {% if crop_url %}
+                            <div class="mb-4">
+                                <h5 class="text-muted">Ảnh biển số đã nhận diện:</h5>
+                                <img src="{{ crop_url }}" class="img-fluid rounded border border-{{ color }}" style="max-width: 300px; border-width:4px;" alt="Biển số">
+                            </div>
+                            {% endif %}
+                            
+                            {% if image_url %}
+                            <div>
+                                <h5 class="text-muted">Ảnh gốc với khung nhận diện:</h5>
+                                <img src="{{ image_url }}" class="img-fluid rounded border" style="max-width: 600px;" alt="Ảnh gốc">
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% elif plates %}
+            <div class="row justify-content-center">
+                <div class="col-md-10">
+                    <div class="card shadow">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0">{{ message }}</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Biển Số</th>
+                                            <th>Frame</th>
+                                            <th>Thời Gian (giây)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for p in plates %}
+                                            <tr>
+                                                <td class="fw-bold">{{ p.plate }}</td>
+                                                <td>{{ p.frame }}</td>
+                                                <td>{{ "%.1f"|format(p.timestamp) }}</td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% if video_url %}
+                                <div class="mt-4 text-center">
+                                    <video controls class="w-100">
+                                        <source src="{{ video_url }}" type="video/mp4">
+                                        Trình duyệt không hỗ trợ video.
+                                    </video>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+        
+        <div class="text-center mt-4">
+            <a href="/upload_image" class="btn btn-primary me-2">Upload Ảnh Khác</a>
+            <a href="/upload_video" class="btn btn-success me-2">Upload Video Khác</a>
+            <a href="/" class="btn btn-secondary">Về Trang Chủ</a>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Ảnh - Nhận Diện Biển Số</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        
+        body {
+            background-color: #ffffff;
+            color: #333333;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .main-container {
+            max-width: 1400px;
+            margin: 20px auto;
+            padding: 0 15px;
+        }
+
+        .image-box {
+            border: 2px dashed #cccccc;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #f9f9f9;
+            padding: 20px;
+            min-height: 400px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .image-box img {
+            max-width: 100%;
+            max-height: 400px;
+            object-fit: contain;
+        }
+
+        .image-box.has-image {
+            border: 1px solid #e0e0e0;
+            background: #ffffff;
+        }
+
+        .image-box.dragover {
+            border-color: #007bff;
+            background-color: #e7f3ff;
+        }
+
+        .upload-placeholder {
+            text-align: center;
+            color: #999;
+            cursor: pointer;
+        }
+
+        .upload-placeholder i {
+            font-size: 4rem;
+            margin-bottom: 15px;
+            color: #cccccc;
+        }
+
+        .upload-placeholder p {
+            margin: 0;
+            font-size: 1.1rem;
+        }
+
+        .upload-placeholder small {
+            display: block;
+            color: #bbb;
+            margin-top: 10px;
+        }
+
+        .status-panel {
+            background: #ffffff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .navbar {
+            background-color: #ffffff !important;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .navbar-brand {
+            color: #212529 !important;
+            font-weight: bold;
+            font-size: 1.8rem;
+        }
+
+        .nav-link {
+            background: none !important;
+            color: #212529 !important;
+            transition: all 0.3s ease;
+            border-bottom: none;
+            font-size: 1.3rem;
+        }
+
+        .nav-link:hover {
+            transform: translateY(-2px);
+        }
+
+        .nav-link.active {
+            border-bottom: 2px solid #212529;
+        }
+
+        .card {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+        }
+
+        .card-header {
+            background-color: #f9f9f9;
+            color: #333333;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .card:first-child .card-header {
+            display: none;
+        }
+
+        .btn-action {
+            font-size: 0.9rem;
+            padding: 8px 12px;
+            font-weight: 500;
+            border-radius: 5px;
+            margin: 0;
+            width: 100%;
+            color: #000 !important;
+            background-color: #ffffff !important;
+            border: 2px solid #000 !important;
+            transition: transform 0.2s ease !important;
+        }
+
+        .btn-action:hover {
+            transform: translateY(-3px);
+            background-color: #ffffff !important;
+            color: #000 !important;
+            border: 2px solid #000 !important;
+        }
+
+        .btn-action:active {
+            transform: translateY(-1px);
+            background-color: #ffffff !important;
+            color: #000 !important;
+            border: 2px solid #000 !important;
+        }
+
+        .btn-action:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .result-section {
+            display: none;
+            max-height: 0;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .result-section.show {
+            display: block;
+            max-height: 2000px;
+        }
+
+        .plate-result {
+            text-align: center;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .plate-result h3 {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin: 20px 0;
+            font-family: 'Courier New', monospace;
+            letter-spacing: 2px;
+        }
+
+        .plate-result.success {
+            background: #d4edda;
+            border: 3px solid #28a745;
+        }
+
+        .plate-result.warning {
+            background: #fff3cd;
+            border: 3px solid #ffc107;
+        }
+
+        .plate-result.danger {
+            background: #f8d7da;
+            border: 3px solid #dc3545;
+        }
+
+        .violation-box {
+            background: #f8d7da;
+            border-left: 4px solid #dc3545;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+
+        .vehicle-type {
+            display: inline-block;
+            background: #e7f3ff;
+            border: 1px solid #2196F3;
+            padding: 8px 15px;
+            border-radius: 20px;
+            margin: 10px 5px;
+            font-weight: 500;
+            color: #1565c0;
+        }
+
+        .clarity-badge {
+            display: inline-block;
+            padding: 8px 15px;
+            border-radius: 4px;
+            margin: 10px 5px;
+            font-weight: 500;
+        }
+
+        .clarity-badge.clear {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .clarity-badge.blur {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .crop-image {
+            max-width: 300px;
+            max-height: 300px;
+            border: 2px solid #28a745;
+            border-radius: 4px;
+            margin: 15px 0;
+        }
+
+        .crop-image.warning {
+            border-color: #ffc107;
+        }
+
+        .crop-image.danger {
+            border-color: #dc3545;
+        }
+
+        .loading-spinner {
+            display: none;
+            text-align: center;
+            padding: 30px;
+        }
+
+        .loading-spinner.show {
+            display: block;
+        }
+
+        #file {
+            display: none;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .info-text {
+            font-size: 1.1rem;
+            margin: 15px 0;
+            padding: 15px;
+            background: #f5f5f5;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-light bg-white mb-4 border-bottom">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">
+                HỆ THỐNG NHẬN DIỆN BIỂN SỐ XE
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link btn btn-success me-2" href="/">
+                            <i class="fas fa-video"></i>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link btn btn-outline-secondary me-2" href="/history">
+                            <i class="fas fa-history"></i>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active btn btn-outline-primary me-2" href="/upload_image">
+                            <i class="fas fa-upload"></i>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link btn btn-outline-info me-2" href="/upload_video">
+                            <i class="fas fa-film"></i>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid main-container">
+        <div class="row g-4">
+            <!-- Phần upload ảnh + điều khiển -->
+            <div class="col-lg-8">
+                <!-- Card ảnh nhận diện -->
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-image me-2"></i>Ảnh Nhận Diện</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="image-box" id="imageBox">
+                            <div class="upload-placeholder">
+                                <i class="fas fa-cloud-upload-alt"></i>
+                                <p>Kéo ảnh vào đây hoặc nhấn để chọn</p>
+                                <small>Hỗ trợ: PNG, JPG, JPEG</small>
+                            </div>
+                            <img id="previewImage" style="display: none;" alt="Preview">
+                            <input type="file" id="file" accept=".png,.jpg,.jpeg" />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card điều khiển nút -->
+                <div class="card mt-3">
+                    <div class="card-body">
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <button id="btnUpload" class="btn btn-primary btn-action w-100">
+                                    <i class="fas fa-upload me-2"></i>Tải Ảnh
+                                </button>
+                            </div>
+                            <div class="col-6">
+                                <button id="btnRun" class="btn btn-success btn-action w-100" disabled>
+                                    <i class="fas fa-play me-2"></i>Quét
+                                </button>
+                            </div>
+                            <div class="col-6">
+                                <button id="btnCancel" class="btn btn-secondary btn-action w-100">
+                                    <i class="fas fa-times me-2"></i>Hủy
+                                </button>
+                            </div>
+                            <div class="col-6">
+                                <button id="btnSave" class="btn btn-info btn-action w-100">
+                                    <i class="fas fa-save me-2"></i>Lưu
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Loading spinner -->
+                <div id="loadingSpinner" class="loading-spinner mt-3">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Đang xử lý...</span>
+                    </div>
+                    <p class="mt-3">Đang quét biển số...</p>
+                </div>
+            </div>
+
+            <!-- Phần kết quả -->
+            <div class="col-lg-4">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-cogs me-2"></i>Kết Quả Nhận Diện</h5>
+                    </div>
+                    <div class="card-body status-panel">
+                        <!-- Kết quả -->
+                        <div id="resultSection" class="result-section">
+                            <!-- Thông tin loại xe -->
+                            <div id="vehicleTypeBox" style="display:none;">
+                                <p class="text-muted mb-2">Loại phương tiện:</p>
+                                <div id="vehicleType"></div>
+                            </div>
+
+                            <!-- Biển số -->
+                            <div id="plateBox" style="display:none;">
+                                <div id="plateResult" class="plate-result"></div>
+                            </div>
+
+                            <!-- Thông tin chi tiết -->
+                            <div id="infoBox" style="display:none;">
+                                <div id="infoText" class="info-text"></div>
+                            </div>
+
+                            <!-- Cảnh báo vi phạm -->
+                            <div id="violationBox" style="display:none;">
+                                <div id="violationText" class="violation-box"></div>
+                            </div>
+
+                            <!-- Ảnh biển số cắt -->
+                            <div id="cropBox" style="display:none;">
+                                <p class="text-muted mb-2">Biển số đã nhận diện:</p>
+                                <div class="text-center">
+                                    <img id="cropImage" class="crop-image" alt="Biển số">
+                                </div>
+                            </div>
+
+                            <!-- Ảnh gốc -->
+                            <div id="originalBox" style="display:none;">
+                                <p class="text-muted mb-2">Ảnh gốc với khung nhận diện:</p>
+                                <div class="text-center">
+                                    <img id="originalImage" style="max-width: 100%; border-radius: 4px;" alt="Ảnh gốc">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let selectedFile = null;
+        let currentResult = null;
+
+        // Setup file input
+        const fileInput = document.getElementById('file');
+        const imageBox = document.getElementById('imageBox');
+        const previewImage = document.getElementById('previewImage');
+        const btnUpload = document.getElementById('btnUpload');
+        const btnRun = document.getElementById('btnRun');
+        const btnCancel = document.getElementById('btnCancel');
+        const btnSave = document.getElementById('btnSave');
+
+        // Click to browse
+        imageBox.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        // Drag and drop
+        imageBox.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            imageBox.classList.add('dragover');
+        });
+
+        imageBox.addEventListener('dragleave', () => {
+            imageBox.classList.remove('dragover');
+        });
+
+        imageBox.addEventListener('drop', (e) => {
+            e.preventDefault();
+            imageBox.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFileSelection(files[0]);
+            }
+        });
+
+        // File input change
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFileSelection(e.target.files[0]);
+            }
+        });
+
+        function handleFileSelection(file) {
+            if (!file.type.match('image.*')) {
+                alert('Vui lòng chọn file ảnh!');
+                return;
+            }
+
+            selectedFile = file;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                previewImage.src = e.target.result;
+                previewImage.style.display = 'block';
+                document.querySelector('.upload-placeholder').style.display = 'none';
+                imageBox.classList.add('has-image');
+                btnRun.disabled = false;
+                clearResults();
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Upload button
+        btnUpload.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        // Run button
+        btnRun.addEventListener('click', async () => {
+            if (!selectedFile) {
+                alert('Vui lòng chọn ảnh trước!');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+
+            showLoading(true);
+            btnRun.disabled = true;
+
+            try {
+                const response = await fetch('/api/detect_image', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    displayResult(result);
+                } else {
+                    alert('Lỗi: ' + result.message);
+                    clearResults();
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Lỗi kết nối: ' + error.message);
+                clearResults();
+            } finally {
+                showLoading(false);
+                btnRun.disabled = false;
+            }
+        });
+
+        // Cancel button
+        btnCancel.addEventListener('click', () => {
+            clearResults();
+        });
+
+        // Save button
+        btnSave.addEventListener('click', () => {
+            if (!currentResult) return;
+
+            // Nếu không có biển số, không lưu
+            if (!currentResult.plate) {
+                alert('Không thể lưu khi biển số không rõ!');
+                return;
+            }
+
+            // Save to CSV (gọi API)
+            const plate = currentResult.plate;
+            fetch('/api/save_detection', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    plate: plate,
+                    status: currentResult.status,
+                    vehicle_type: currentResult.vehicle_type,
+                    violations: currentResult.violations || []
+                })
+            }).then(res => res.json())
+              .then(data => {
+                  if (data.success) {
+                      alert('Đã lưu kết quả!');
+                  } else {
+                      alert('Lỗi: ' + data.message);
+                  }
+              })
+              .catch(err => {
+                  alert('Lỗi kết nối: ' + err.message);
+              });
+        });
+
+        function showLoading(show) {
+            document.getElementById('loadingSpinner').classList.toggle('show', show);
+            document.getElementById('resultSection').classList.toggle('show', !show);
+        }
+
+        function clearResults() {
+            document.getElementById('resultSection').classList.remove('show');
+            clearAllBoxes();
+        }
+
+        function clearAllBoxes() {
+            document.getElementById('vehicleTypeBox').style.display = 'none';
+            document.getElementById('plateBox').style.display = 'none';
+            document.getElementById('infoBox').style.display = 'none';
+            document.getElementById('violationBox').style.display = 'none';
+            document.getElementById('cropBox').style.display = 'none';
+            document.getElementById('originalBox').style.display = 'none';
+        }
+
+        function displayResult(result) {
+            clearAllBoxes();
+            currentResult = result;
+
+            // Hiển thị loại xe
+            if (result.vehicle_type) {
+                const vehicleTypeBox = document.getElementById('vehicleTypeBox');
+                document.getElementById('vehicleType').innerHTML = 
+                    `<span class="vehicle-type"><i class="fas fa-car me-2"></i>${result.vehicle_type}</span>`;
+                vehicleTypeBox.style.display = 'block';
+            }
+
+            // Hiển thị biển số
+            if (result.plate) {
+                const plateBox = document.getElementById('plateBox');
+                const plateResult = document.getElementById('plateResult');
+                
+                let className = 'success';
+                if (result.violations && result.violations.length > 0) {
+                    className = 'warning';
+                } else if (result.clarity === 'Mờ') {
+                    className = 'danger';
+                }
+
+                plateResult.className = `plate-result ${className}`;
+                plateResult.innerHTML = `
+                    <p class="text-muted mb-2">Biển số nhận diện:</p>
+                    <h3>${result.plate}</h3>
+                    <span class="clarity-badge ${result.clarity === 'Rõ' ? 'clear' : 'blur'}">
+                        <i class="fas fa-eye me-1"></i>Độ rõ: ${result.clarity}
+                    </span>
+                `;
+                plateBox.style.display = 'block';
+            } else {
+                const plateBox = document.getElementById('plateBox');
+                const plateResult = document.getElementById('plateResult');
+                plateResult.className = 'plate-result danger';
+                plateResult.innerHTML = `
+                    <h3 style="color: #721c24;">Không rõ</h3>
+                    <p class="text-danger">Hình ảnh mờ hoặc không thể nhận diện biển số</p>
+                `;
+                plateBox.style.display = 'block';
+                return;
+            }
+
+            // Hiển thị thông tin chi tiết
+            if (result.info_text) {
+                const infoBox = document.getElementById('infoBox');
+                document.getElementById('infoText').textContent = result.info_text;
+                infoBox.style.display = 'block';
+            }
+
+            // Hiển thị cảnh báo vi phạm nếu có
+            if (result.violations && result.violations.length > 0) {
+                const violationBox = document.getElementById('violationBox');
+                const violationText = document.getElementById('violationText');
+                let html = '<strong><i class="fas fa-exclamation-triangle me-2"></i>Phát hiện vi phạm:</strong><ul class="mt-2 mb-0">';
+                result.violations.forEach(v => {
+                    html += `<li>${v}</li>`;
+                });
+                html += '</ul>';
+                violationText.innerHTML = html;
+                violationBox.style.display = 'block';
+            }
+
+            // Hiển thị ảnh biển số cắt
+            if (result.crop_url) {
+                const cropBox = document.getElementById('cropBox');
+                const cropImage = document.getElementById('cropImage');
+                
+                let className = 'success';
+                if (result.violations && result.violations.length > 0) {
+                    className = 'warning';
+                } else if (result.clarity === 'Mờ') {
+                    className = 'danger';
+                }
+                
+                cropImage.className = `crop-image ${className}`;
+                cropImage.src = result.crop_url;
+                cropBox.style.display = 'block';
+            }
+
+            // Hiển thị ảnh gốc
+            if (result.image_url) {
+                const originalBox = document.getElementById('originalBox');
+                document.getElementById('originalImage').src = result.image_url;
+                originalBox.style.display = 'block';
+            }
+
+            document.getElementById('resultSection').classList.add('show');
+        }
+    </script>
+</body>
+</html>

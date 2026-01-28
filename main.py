@@ -1,10 +1,11 @@
 import tkinter as tk
-from tkinter import Label
+from tkinter import Label, messagebox
 from PIL import Image, ImageTk
 import cv2
 import torch
 import numpy as np
 import pathlib
+import sys
 from ultralytics import YOLO
 
 # --- CẤU HÌNH ---
@@ -17,37 +18,48 @@ class SimpleLPRApp:
         self.root = root
         self.root.title("SIMPLE LPR - NHẬN DIỆN BIỂN SỐ XE")
         self.root.geometry("900x600")
-        self.root.configure(bg="#2c3e50")
+        self.root.configure(bg="white")
 
         # --- 1. LOAD MODEL ---
         self.load_models()
 
         # --- 2. GIAO DIỆN ---
         # Tiêu đề
-        tk.Label(root, text="HỆ THỐNG NHẬN DIỆN BIỂN SỐ", font=("Arial", 20, "bold"), bg="#2c3e50", fg="#ecf0f1").pack(pady=10)
+        title_label = tk.Label(root, text="HỆ THỐNG NHẬN DIỆN BIỂN SỐ XE", font=("Arial", 18, "bold"), bg="white", fg="black")
+        title_label.pack(pady=(20, 10))
 
         # Khung Camera
-        self.lbl_video = Label(root, bg="black")
-        self.lbl_video.pack(pady=10)
+        camera_frame = tk.Frame(root, bg="white", relief="ridge", bd=2)
+        camera_frame.pack(pady=10, padx=20, fill=tk.BOTH, expand=True)
+        self.lbl_video = tk.Label(camera_frame, bg="white", text="Đang tải camera...", font=("Arial", 12))
+        self.lbl_video.pack(fill=tk.BOTH, expand=True)
 
         # Khung Kết Quả
-        result_frame = tk.Frame(root, bg="#34495e", pady=10)
+        result_frame = tk.Frame(root, bg="lightgray", relief="ridge", bd=2, padx=10, pady=10)
         result_frame.pack(fill=tk.X, padx=20, pady=10)
 
-        tk.Label(result_frame, text="BIỂN SỐ ĐỌC ĐƯỢC:", font=("Arial", 14), bg="#34495e", fg="#bdc3c7").pack()
-        self.lbl_result = tk.Label(result_frame, text="---", font=("Arial", 30, "bold"), bg="#34495e", fg="#f1c40f")
-        self.lbl_result.pack()
+        tk.Label(result_frame, text="BIỂN SỐ ĐỌC ĐƯỢC:", font=("Arial", 14, "bold"), bg="lightgray", fg="black").pack(anchor="w")
+        self.lbl_result = tk.Label(result_frame, text="---", font=("Arial", 28, "bold"), bg="lightgray", fg="blue")
+        self.lbl_result.pack(pady=(5, 10))
 
         # Ảnh Biển Số Cắt Ra
-        self.lbl_crop = Label(result_frame, bg="#34495e")
+        crop_frame = tk.Frame(result_frame, bg="white", relief="sunken", bd=1)
+        crop_frame.pack(fill=tk.X, pady=5)
+        self.lbl_crop = tk.Label(crop_frame, bg="white", text="Chưa có ảnh biển số")
         self.lbl_crop.pack(pady=5)
 
         # Hướng dẫn
-        tk.Label(root, text="👉 Bấm phím SPACE (Cách) để chụp và đọc biển số", font=("Arial", 12, "italic"), bg="#2c3e50", fg="#95a5a6").pack(side=tk.BOTTOM, pady=10)
+        instruction_label = tk.Label(root, text="💡 Bấm phím SPACE để chụp và đọc biển số", font=("Arial", 11), bg="white", fg="gray")
+        instruction_label.pack(side=tk.BOTTOM, pady=(10, 20))
 
         # --- 3. KHỞI ĐỘNG CAMERA ---
-        self.cap = cv2.VideoCapture(0) # Số 0 là Webcam, hoặc thay bằng đường dẫn video
-        self.update_camera()
+        # Thử camera trước, nếu không được thì dùng video mẫu
+        self.cap = cv2.VideoCapture(0) # Số 0 là Webcam
+        if not self.cap.isOpened():
+            print("⚠️ Không tìm thấy camera, thử dùng video mẫu...")
+            # Có thể thêm video mẫu ở đây nếu có
+            self.lbl_video.configure(text="Không có camera hoặc video", font=("Arial", 12))
+            return
 
         # Bắt sự kiện phím SPACE
         self.root.bind('<space>', self.trigger_detection)
@@ -55,12 +67,14 @@ class SimpleLPRApp:
     def load_models(self):
         print("⏳ Đang tải model...")
         try:
-            # Fix lỗi Path Windows khi load model YOLOv5
-            temp = pathlib.PosixPath
+            # Add yolov5 to path for model loading
+            sys.path.append('yolov5')
+            
+            # Fix pathlib for Windows
             pathlib.PosixPath = pathlib.WindowsPath
             
             # Load Model Detect (YOLOv5 Custom)
-            self.model_detect = torch.hub.load('ultralytics/yolov5', 'custom', path=PATH_DETECT, force_reload=True)
+            self.model_detect = YOLO(PATH_DETECT)
             
             # Load Model OCR (YOLOv8)
             self.model_ocr = YOLO(PATH_OCR)
@@ -68,7 +82,7 @@ class SimpleLPRApp:
             print("✅ Model đã sẵn sàng!")
         except Exception as e:
             print(f"❌ Lỗi load model: {e}")
-            tk.messagebox.showerror("Lỗi", f"Không tìm thấy model!\n{e}")
+            messagebox.showerror("Lỗi", f"Không tìm thấy model!\n{e}")
 
     def update_camera(self):
         ret, frame = self.cap.read()
@@ -128,34 +142,43 @@ class SimpleLPRApp:
             print("⚠️ Không thấy biển số nào.")
 
     def ocr_process(self, crop_img):
-        """Hàm đọc ký tự từ ảnh cắt"""
+        """Hàm đọc ký tự từ ảnh cắt với cải thiện độ chính xác"""
+        # Tiền xử lý ảnh để cải thiện nhận diện
+        crop_img = self.preprocess_image(crop_img)
+        
         results = self.model_ocr(crop_img, verbose=False)
         
         chars = []
         for result in results:
             for box in result.boxes:
-                # Lấy class ID (0, 1, 2...) -> chuyển thành ký tự (A, B, 1, 2...)
+                # Lấy confidence
+                conf = float(box.conf[0])
+                
+                # Chỉ chấp nhận ký tự có confidence > 0.6
+                if conf < 0.6:
+                    continue
+                
+                # Lấy class ID
                 cls_id = int(box.cls[0])
                 char_str = self.model_ocr.names[cls_id]
                 
-                # Lấy tọa độ để sắp xếp
+                # Validate ký tự hợp lệ cho biển số Việt Nam
+                if not self.is_valid_plate_char(char_str):
+                    continue
+                
+                # Lấy tọa độ
                 x1, y1, x2, y2 = box.xyxy[0].tolist()
                 cx = (x1 + x2) / 2
                 cy = (y1 + y2) / 2
                 
-                chars.append({'char': char_str, 'cx': cx, 'cy': cy})
+                chars.append({'char': char_str, 'cx': cx, 'cy': cy, 'conf': conf})
         
         if not chars:
-            return "???"
+            return "Không đọc được"
 
-        # Sắp xếp ký tự: 
-        # Nếu biển vuông (2 dòng) -> Sắp theo Y trước, rồi X
-        # Nếu biển dài (1 dòng) -> Sắp theo X
-        
+        # Sắp xếp và xử lý như cũ
         h, w, _ = crop_img.shape
-        # Logic đơn giản: Nếu chiều cao > 1/2 chiều rộng thì khả năng là biển vuông
         if h / w > 0.4: 
-            # Chia 2 dòng dựa vào trung bình Y
             avg_cy = sum(c['cy'] for c in chars) / len(chars)
             top_row = sorted([c for c in chars if c['cy'] < avg_cy], key=lambda x: x['cx'])
             bot_row = sorted([c for c in chars if c['cy'] >= avg_cy], key=lambda x: x['cx'])
@@ -164,9 +187,30 @@ class SimpleLPRApp:
             text_bot = "".join([c['char'] for c in bot_row])
             return f"{text_top}-{text_bot}"
         else:
-            # Biển dài -> Sắp xếp trái qua phải
             chars.sort(key=lambda x: x['cx'])
             return "".join([c['char'] for c in chars])
+
+    def preprocess_image(self, img):
+        """Tiền xử lý ảnh để cải thiện nhận diện"""
+        # Chuyển sang grayscale
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        
+        # Tăng độ tương phản
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+        enhanced = clahe.apply(gray)
+        
+        # Làm sắc nét
+        kernel = np.array([[-1,-1,-1], [-1,9,-1], [-1,-1,-1]])
+        sharpened = cv2.filter2D(enhanced, -1, kernel)
+        
+        # Chuyển lại thành 3 kênh để YOLO xử lý
+        return cv2.cvtColor(sharpened, cv2.COLOR_GRAY2BGR)
+
+    def is_valid_plate_char(self, char):
+        """Kiểm tra ký tự có hợp lệ cho biển số Việt Nam không"""
+        # Biển số Việt Nam gồm: chữ cái A-Z (trừ I, O, Q), số 0-9
+        valid_chars = "0123456789ABCDEFGHKLMNPSTUVXYZ"
+        return char in valid_chars
 
 if __name__ == "__main__":
     root = tk.Tk()

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Video - Smart Parking</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #ffffff; color: #333; }
+        .navbar { background-color: #f8f8f8; border-bottom: 1px solid #ddd; }
+        .navbar-brand { color: #333; }
+        .btn-outline-light { color: #555; border-color: #ddd; }
+        .btn-outline-light:hover { background-color: #e9e9e9; color: #333; }
+        .btn-success { background-color: #666; border-color: #666; }
+        .card { border: 1px solid #ddd; border-radius: 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    </style>
+</head>
+<body class="bg-light">
+    <nav class="navbar">
+        <div class="container">
+            <a class="navbar-brand" href="/">Smart Parking</a>
+            <div>
+                <a href="/" class="btn btn-outline-light me-2">Trực tiếp</a>
+                <a href="/history" class="btn btn-outline-light me-2">Lịch sử</a>
+                <a href="/upload_image" class="btn btn-outline-light">Upload Ảnh</a>
+                <a href="/upload_video" class="btn btn-dark active">Upload Video</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="card shadow">
+                    <div class="card-header" style="background: #f5f5f5; border-bottom: 1px solid #ddd;">
+                        <h5 class="mb-0" style="color: #333;">Upload Video Nhận Diện Biển Số</h5>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST" enctype="multipart/form-data">
+                            <div class="mb-3">
+                                <label for="file" class="form-label">Chọn video (MP4, AVI, MOV)</label>
+                                <input type="file" class="form-control" id="file" name="file" accept=".mp4,.avi,.mov" required>
+                            </div>
+                            <button type="submit" class="btn btn-success w-100">🔍 Nhận Diện</button>
+                        </form>
+                        <div class="alert alert-info mt-3">
+                            <small>Video sẽ được xử lý để tìm tất cả biển số xuất hiện. Quá trình có thể mất thời gian tùy độ dài video.</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
