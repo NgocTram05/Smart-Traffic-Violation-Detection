@@ -16,6 +16,8 @@ log.setLevel(logging.ERROR)
 from werkzeug.utils import secure_filename
 import io
 import traceback
+from collections import deque
+import threading
 
 app = Flask(__name__)
 
@@ -29,6 +31,19 @@ PATH_OCR = 'model/model_nhandien_kytu.pt'
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
 app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'mp4', 'avi', 'mov'}
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
+# --- CẤU HÌNH VIDEO PROCESSING ---
+VIDEO_CONFIG = {
+    'frame_skip': 5,  # Xử lý mỗi 5 frame (có thể điều chỉnh)
+    'ocr_ensemble_frames': 3,  # Kết hợp OCR từ 3 frame liên tiếp
+    'fuzzy_match_threshold': 0.80,  # Ngưỡng fuzzy matching (0.0-1.0)
+    'plate_confidence_threshold': 0.60,  # Ngưỡng confidence phát hiện biển số
+    'ocr_confidence_threshold': 0.50,  # Ngưỡng confidence OCR
+    'clarity_threshold': 0.70,  # Ngưỡng đánh giá độ rõ
+    'save_output_video': True,  # Lưu video được xử lý
+    'output_video_fps': 30,
+    'output_video_codec': 'mp4v'
+}
 
 # --- BIẾN TOÀN CỤC (Lưu trạng thái hiện tại để gửi ra Web) ---
 current_status = {
@@ -249,6 +264,9 @@ def process_image(image_path):
             # Phát hiện vi phạm
             violations = detect_violation(frame, (xmin, ymin, xmax, ymax))
 
+            # Làm sạch biển số
+            clean = text.replace('-', '').replace('.', '').replace(' ', '').upper()
+
             # Đánh giá độ rõ của biển số
             if avg_conf < 0.7:
                 clarity = "Mờ"
@@ -285,21 +303,10 @@ def process_image(image_path):
         raise RuntimeError(tb)
 
 def process_video(video_path):
-    """Xử lý video: phát hiện biển số, đánh giá độ rõ, phân loại, vẽ bounding box và lưu video đã xử lý."""
+    """Xử lý video: phát hiện biển số, đánh giá độ rõ, phân loại và lưu crop."""
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
-        return None, "Không thể mở video", None
-
-    fps = cap.get(cv2.CAP_PROP_FPS)
-    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-
-    # Tạo đường dẫn video đã xử lý
-    base_name = os.path.splitext(os.path.basename(video_path))[0]
-    processed_filename = f"processed_{base_name}.mp4"
-    processed_path = os.path.join(app.config['UPLOAD_FOLDER'], processed_filename)
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    out = cv2.VideoWriter(processed_path, fourcc, fps, (width, height))
+        return None, "Không thể mở video"
 
     plates_found = []
     seen = set()
@@ -311,103 +318,88 @@ def process_video(video_path):
             break
 
         frame_count += 1
-        frame_copy = frame.copy()  # Sao chép frame để vẽ
+        if frame_count % 30 != 0:  # Xử lý mỗi 30 frame để tăng tốc
+            continue
 
-        if frame_count % 10 == 0:  # Xử lý mỗi 10 frame để tăng tốc và trực quan hơn
-            try:
-                results = model_detect(frame)
-                df = results.pandas().xyxy[0]
-                valid = df[df['confidence'] > 0.6]
+        try:
+            results = model_detect(frame)
+            df = results.pandas().xyxy[0]
+            valid = df[df['confidence'] > 0.6]
 
-                if len(valid) > 0:
-                    row = valid.iloc[0]
-                    xmin, ymin, xmax, ymax = int(row['xmin']), int(row['ymin']), int(row['xmax']), int(row['ymax'])
+            if len(valid) > 0:
+                row = valid.iloc[0]
+                xmin, ymin, xmax, ymax = int(row['xmin']), int(row['ymin']), int(row['xmax']), int(row['ymax'])
 
-                    # Phân loại phương tiện
-                    plate_width = xmax - xmin
-                    if plate_width > 300:
-                        vehicle_type = "Xe bus"
-                    elif plate_width > 150:
-                        vehicle_type = "Ô tô"
-                    else:
-                        vehicle_type = "Xe máy"
+                # Phân loại phương tiện
+                plate_width = xmax - xmin
+                if plate_width > 300:
+                    vehicle_type = "Xe bus"
+                elif plate_width > 150:
+                    vehicle_type = "Ô tô"
+                else:
+                    vehicle_type = "Xe máy"
 
-                    crop = frame[ymin:ymax, xmin:xmax]
-                    res_char = model_ocr(crop, verbose=False, conf=0.5)
-                    text, avg_conf = sap_xep_bien_so(res_char, ymax-ymin, xmax-xmin)
+                crop = frame[ymin:ymax, xmin:xmax]
+                res_char = model_ocr(crop, verbose=False, conf=0.5)
+                text, avg_conf = sap_xep_bien_so(res_char, ymax-ymin, xmax-xmin)
 
-                    if not text:
-                        out.write(frame_copy)
-                        continue
+                if not text:
+                    continue
 
-                    clean = text.replace('-', '').replace('.', '').replace(' ', '').upper()
-                    if clean in seen:
-                        out.write(frame_copy)
-                        continue
-                    seen.add(clean)
+                clean = text.replace('-', '').replace('.', '').replace(' ', '').upper()
+                if clean in seen:
+                    continue
+                seen.add(clean)
 
-                    # Phát hiện vi phạm
-                    violations = detect_violation(frame, (xmin, ymin, xmax, ymax))
+                # Phát hiện vi phạm
+                violations = detect_violation(frame, (xmin, ymin, xmax, ymax))
 
-                    # Đánh giá độ rõ
-                    clarity = "Mờ" if avg_conf < 0.7 else "Rõ"
+                # Đánh giá độ rõ
+                clarity = "Mờ" if avg_conf < 0.7 else "Rõ"
 
-                    # Xác định màu bounding box
-                    if clarity == "Mờ":
-                        color = (0, 0, 255)  # Đỏ
-                        status_color = "danger"
-                        info_text = f"{vehicle_type} - {text} (Mờ)"
-                    else:
-                        if violations:
-                            color = (0, 165, 255)  # Cam
-                            status_color = "warning"
-                            info_text = f"{vehicle_type} - {text} - Vi phạm: {', '.join(violations)}"
-                        else:
-                            color = (0, 255, 0)  # Xanh lá
-                            status_color = "success"
-                            info_text = f"{vehicle_type} - {text}"
-
-                    # Vẽ bounding box
-                    cv2.rectangle(frame_copy, (xmin, ymin), (xmax, ymax), color, 3)
-                    # Vẽ text
-                    cv2.putText(frame_copy, text, (xmin, ymin - 10), cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2)
-
-                    # Lưu crop
-                    crop_name = f"crop_{base_name}_{clean}_{frame_count}.jpg"
-                    crop_path = os.path.join(app.config['UPLOAD_FOLDER'], crop_name)
-                    cv2.imwrite(crop_path, crop)
-                    crop_url = url_for('static', filename='uploads/' + crop_name)
-
-                    # Ghi log nếu có vi phạm
+                if clarity == "Mờ":
+                    status_color = "danger"
+                    info_text = f"{vehicle_type} - {text} (Mờ)"
+                else:
                     if violations:
-                        now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                        log_to_csv(clean, "PHÁT HIỆN VI PHẠM", info_text, f"Video: {os.path.basename(video_path)} - Frame {frame_count}")
+                        status_color = "warning"
+                        info_text = f"{vehicle_type} - {text} - Vi phạm: {', '.join(violations)}"
+                    else:
+                        status_color = "success"
+                        info_text = f"{vehicle_type} - {text}"
 
-                    plates_found.append({
-                        'plate': text,
-                        'clean': clean,
-                        'info': info_text,
-                        'color': status_color,
-                        'frame': frame_count,
-                        'timestamp': round(frame_count / fps, 2),
-                        'clarity': clarity,
-                        'crop_url': crop_url,
-                        'vehicle_type': vehicle_type
-                    })
-            except Exception:
-                pass
+                # Lưu crop
+                crop_name = f"crop_{os.path.splitext(os.path.basename(video_path))[0]}_{clean}_{frame_count}.jpg"
+                crop_path = os.path.join(app.config['UPLOAD_FOLDER'], crop_name)
+                cv2.imwrite(crop_path, crop)
+                crop_url = url_for('static', filename='uploads/' + crop_name)
 
-        out.write(frame_copy)
+                # Ghi log nếu có vi phạm
+                if violations:
+                    now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    log_to_csv(clean, "PHÁT HIỆN VI PHẠM", info_text, f"Video: {os.path.basename(video_path)} - Frame {frame_count}")
+
+                plates_found.append({
+                    'plate': text,
+                    'clean': clean,
+                    'info': info_text,
+                    'color': status_color,
+                    'frame': frame_count,
+                    'timestamp': round(frame_count / 30, 2),
+                    'clarity': clarity,
+                    'crop_url': crop_url,
+                    'vehicle_type': vehicle_type
+                })
+        except Exception:
+            pass
 
     cap.release()
-    out.release()
 
     # Ghi log cho video
     for plate_info in plates_found:
         log_to_csv(plate_info['clean'], "PHÁT HIỆN VI PHẠM VIDEO", plate_info['info'], f"Video: {os.path.basename(video_path)}, Frame: {plate_info['frame']}, Độ rõ: {plate_info['clarity']}")
 
-    processed_video_url = url_for('static', filename='uploads/' + processed_filename)
-    return plates_found, f"Tìm thấy {len(plates_found)} biển số trong video", processed_video_url
+    return plates_found, f"Tìm thấy {len(plates_found)} biển số trong video"
 
 def log_to_csv(plate, action, person, note):
     now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -607,13 +599,12 @@ def upload_video():
         file.save(filepath)
         
         # Xử lý video
-        plates, message, processed_video_url = process_video(filepath)
+        plates, message = process_video(filepath)
 
         return render_template('upload_video_result.html',
                      plates=plates,
                      message=message,
-                     video_url=url_for('static', filename='uploads/' + filename),
-                     processed_video_url=processed_video_url)
+                     video_url=url_for('static', filename='uploads/' + filename))
     
     return render_template('upload_video_v2.html')
 
