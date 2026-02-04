@@ -173,9 +173,9 @@ def process_frame(frame):
             # Phát hiện vi phạm
             violations = detect_violation(frame, (xmin, ymin, xmax, ymax))
             
-            # OCR
+            # OCR -> sap_xep_bien_so trả về (text, avg_conf)
             crop = frame[ymin:ymax, xmin:xmax]
-            text = sap_xep_bien_so(model_ocr(crop, verbose=False, conf=0.5), ymax-ymin, xmax-xmin)
+            text, avg_conf = sap_xep_bien_so(model_ocr(crop, verbose=False, conf=0.5), ymax-ymin, xmax-xmin)
             
             # Xác định màu sắc
             if not text:
@@ -244,9 +244,14 @@ def process_image(image_path):
             row = valid.iloc[0]
             xmin, ymin, xmax, ymax = int(row['xmin']), int(row['ymin']), int(row['xmax']), int(row['ymax'])
             
-            # Phân loại phương tiện dựa trên kích thước biển số
+            # Phân loại phương tiện: dùng width + aspect (height/width) để phân biệt biển dọc (xe máy)
             plate_width = xmax - xmin
-            if plate_width > 300:
+            plate_height = ymax - ymin
+            aspect = (plate_height / plate_width) if plate_width > 0 else 0
+            # Nếu biển dọc (height > width), nhiều khả năng là xe máy
+            if aspect > 1.2:
+                vehicle_type = "Xe máy"
+            elif plate_width > 300:
                 vehicle_type = "Xe bus"
             elif plate_width > 150:
                 vehicle_type = "Ô tô"
@@ -330,9 +335,13 @@ def process_video(video_path):
                 row = valid.iloc[0]
                 xmin, ymin, xmax, ymax = int(row['xmin']), int(row['ymin']), int(row['xmax']), int(row['ymax'])
 
-                # Phân loại phương tiện
+                # Phân loại phương tiện: dùng width + aspect
                 plate_width = xmax - xmin
-                if plate_width > 300:
+                plate_height = ymax - ymin
+                aspect = (plate_height / plate_width) if plate_width > 0 else 0
+                if aspect > 1.2:
+                    vehicle_type = "Xe máy"
+                elif plate_width > 300:
                     vehicle_type = "Xe bus"
                 elif plate_width > 150:
                     vehicle_type = "Ô tô"
@@ -483,7 +492,12 @@ def index():
 # API: Trả về thông tin xe mới nhất (JSON) để JS cập nhật
 @app.route('/api/get_latest')
 def get_latest():
-    return jsonify(current_status)
+    # Trả về bản sao đã được chuẩn hoá để đảm bảo 'plate' là chuỗi
+    cs = current_status.copy()
+    plate = cs.get('plate', '')
+    if isinstance(plate, (list, tuple)):
+        cs['plate'] = plate[0] if plate else ''
+    return jsonify(cs)
 
 # API: Trả về lịch sử (JSON)
 @app.route('/api/get_history')
@@ -671,7 +685,11 @@ def stop_realtime():
 
 @app.route('/api/status')
 def api_status():
-    return jsonify(current_status)
+    cs = current_status.copy()
+    plate = cs.get('plate', '')
+    if isinstance(plate, (list, tuple)):
+        cs['plate'] = plate[0] if plate else ''
+    return jsonify(cs)
 
 # === API CHO UPLOAD IMAGE ===
 @app.route('/api/detect_image', methods=['POST'])
@@ -716,9 +734,13 @@ def api_detect_image():
         row = valid.iloc[0]
         xmin, ymin, xmax, ymax = int(row['xmin']), int(row['ymin']), int(row['xmax']), int(row['ymax'])
         
-        # Phân loại phương tiện
+        # Phân loại phương tiện: dùng width + aspect
         plate_width = xmax - xmin
-        if plate_width > 300:
+        plate_height = ymax - ymin
+        aspect = (plate_height / plate_width) if plate_width > 0 else 0
+        if aspect > 1.2:
+            vehicle_type = "Xe máy"
+        elif plate_width > 300:
             vehicle_type = "Xe bus"
         elif plate_width > 150:
             vehicle_type = "Ô tô"
