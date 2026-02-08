@@ -5,33 +5,150 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kết Quả Video - Smart Traffic</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { 
+            background-color: #ffffff; 
+            color: #000000; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+        }
+        .navbar { 
+            background-color: #ffffff !important; 
+            border-bottom: 1px solid #dee2e6;
+        }
+        .navbar-brand { 
+            color: #212529 !important; 
+            font-weight: bold; 
+            font-size: 1.5rem; 
+        }
+        .nav-link { 
+            background: none !important; 
+            color: #212529 !important; 
+            transition: all 0.3s ease; 
+            border-bottom: none;
+            font-weight: 500;
+        }
+        .nav-link:hover { 
+            transform: translateY(-2px);
+        }
+        .card { 
+            border: 1px solid #dee2e6; 
+            border-radius: 0px;
+        }
+        .card-header { 
+            background-color: #f8f9fa; 
+            color: #212529; 
+            border-bottom: 1px solid #dee2e6; 
+            padding: 15px;
+        }
+        .card-header h5 {
+            margin: 0;
+            font-weight: bold;
+            font-size: 1rem;
+        }
+    </style>
 </head>
-<body class="bg-light">
-    <div class="container mt-4">
-        <a href="/" class="btn btn-outline-secondary mb-3">Quay lại</a>
-        <h3>Kết quả xử lý video</h3>
-        <p>{{ message }}</p>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-light bg-white mb-4 border-bottom">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">
+                HỆ THỐNG NHẬN DIỆN BIỂN SỐ XE
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link btn btn-success me-2" href="/">
+                            Trực Tiếp
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link btn btn-outline-secondary me-2" href="/history">
+                            Lịch Sử
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link btn btn-outline-primary me-2" href="/upload_image">
+                            Upload Ảnh
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link btn btn-outline-info active" href="/upload_video">
+                            Upload Video
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
 
-        {% if plates %}
-        <div class="row">
-            {% for p in plates %}
-            <div class="col-md-6 mb-3">
-                <div class="card border border-{{ p.color }}" style="border-width:4px;">
-                    <div class="card-body text-center">
-                        <h4>{{ p.plate }}</h4>
-                        <p class="mb-1">{{ p.info }}</p>
-                        <p class="mb-1">Loại: {{ p.vehicle_type }} | Thời gian: {{ p.timestamp }}s | Độ rõ: {{ p.clarity }}</p>
-                        {% if p.crop_url %}
-                        <img src="{{ p.crop_url }}" class="img-fluid border border-{{ p.color }}" style="max-width:280px; border-width:4px;" alt="crop">
-                        {% endif %}
+    <div class="container-fluid" style="max-width: 1200px; margin: 0 auto; padding: 0 15px;">
+        <div class="mb-4">
+            <a href="/upload_video" class="btn btn-outline-secondary">← Quay lại</a>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>Thông Tin Xử Lý Video</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>{{ message }}</strong></p>
+            </div>
+        </div>
+
+        {% if processed_video_url %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>Video Đã Xử Lý (Với Bounding Box)</h5>
+            </div>
+            <div class="card-body" style="text-align: center;">
+                <video width="100%" height="480" controls style="border: 1px solid #dee2e6; border-radius: 0px;">
+                    <source src="{{ processed_video_url }}" type="video/mp4">
+                    Trình duyệt không hỗ trợ video.
+                </video>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if plates and plates|length > 0 %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>Biển Số Được Phát Hiện ({{ plates|length }})</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% for p in plates %}
+                    <div class="col-md-6 mb-3">
+                        <div class="card border border-{{ p.color }}" style="border-width:2px; border-radius: 0px;">
+                            <div class="card-body">
+                                <h5 style="text-align: center; font-weight: bold; font-size: 1.5em;">{{ p.plate }}</h5>
+                                <p class="mb-2" style="text-align: center;"><strong>{{ p.info }}</strong></p>
+                                <div style="font-size: 0.9rem; margin-bottom: 15px;">
+                                    <div class="row g-2">
+                                        <div class="col-6"><strong>Loại xe:</strong> {{ p.vehicle_type }}</div>
+                                        <div class="col-6"><strong>Thời điểm:</strong> {{ p.timestamp }}s</div>
+                                        <div class="col-6"><strong>Frame:</strong> {{ p.frame }}</div>
+                                        <div class="col-6"><strong>Độ rõ:</strong> {{ p.clarity }}</div>
+                                    </div>
+                                </div>
+                                {% if p.crop_url %}
+                                <div style="text-align: center;">
+                                    <img src="{{ p.crop_url }}" class="img-fluid border border-{{ p.color }}" style="max-width:100%; max-height:150px; border-radius: 0px; border-width:2px;" alt="crop">
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
                     </div>
+                    {% endfor %}
                 </div>
             </div>
-            {% endfor %}
         </div>
         {% else %}
             <div class="alert alert-secondary">Không tìm thấy biển số trong video.</div>
         {% endif %}
     </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

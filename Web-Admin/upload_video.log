@@ -1,0 +1,12 @@
+2026-02-08 13:58:52,808 - __main__ - INFO - Thông tin video: 16.9s, 30.0FPS, 506 frames
+2026-02-08 14:01:05,232 - __main__ - WARNING - FFmpeg not available or error: [WinError 2] The system cannot find the file specified
+2026-02-08 14:01:05,232 - __main__ - INFO - Using AVI: processed_demo_video_20260208_135852.avi
+2026-02-08 14:01:10,077 - __main__ - INFO - Serving video: processed_demo_video_20260208_135852.avi (40713810 bytes)
+2026-02-08 14:03:13,004 - __main__ - INFO - Thông tin video: 16.9s, 30.0FPS, 506 frames
+2026-02-08 14:05:42,081 - __main__ - WARNING - FFmpeg not available or error: [WinError 2] The system cannot find the file specified
+2026-02-08 14:05:42,082 - __main__ - INFO - Using AVI: processed_demo_video_20260208_140313.avi
+2026-02-08 14:13:38,617 - __main__ - INFO - Thông tin video: 16.9s, 30.0FPS, 506 frames
+2026-02-08 14:27:28,434 - __main__ - INFO - Thông tin video: 16.9s, 30.0FPS, 506 frames
+2026-02-08 14:31:36,067 - __main__ - INFO - Thông tin video: 16.9s, 30.0FPS, 506 frames
+2026-02-08 14:37:52,265 - __main__ - INFO - Thông tin video: 16.9s, 30.0FPS, 506 frames
+2026-02-08 14:43:20,817 - __main__ - INFO - Thông tin video: 16.9s, 30.0FPS, 506 frames

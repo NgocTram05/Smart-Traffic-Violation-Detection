@@ -43,6 +43,7 @@
             display: flex; 
             align-items: center; 
             justify-content: center; 
+            position: relative;
         }
         .video-placeholder { 
             width: 100%; 
@@ -161,6 +162,20 @@
             color: #000000;
             border-color: #000000;
         }
+        .file-info {
+            font-size: 0.85rem;
+            color: #666;
+            margin-top: 8px;
+        }
+        .progress-bar-animated {
+            animation: progress-bar-stripes 1s linear infinite;
+        }
+        .spinner-border {
+            width: 1rem;
+            height: 1rem;
+            border-width: 0.2em;
+            margin-right: 8px;
+        }
     </style>
 </head>
 <body>
@@ -208,6 +223,7 @@
             <div id="videoBox" class="video-box">
                 <div id="videoPlaceholder" class="video-placeholder">Không có video. Tải video lên để xem trước.</div>
                 <video id="previewVideo" style="display:none; width:100%; height:100%; object-fit:contain;" controls></video>
+                <canvas id="overlayCanvas" style="position:absolute; top:0; left:0; pointer-events:none; display:none;"></canvas>
             </div>
         </div>
     </div>
@@ -216,21 +232,43 @@
         <div class="row">
             <div class="col-md-8">
                 <div class="mb-3">
-                    <label for="videoFile" class="form-label">Chọn file video (MP4, AVI, MOV)</label>
+                    <label for="videoFile" class="form-label">Chọn file video (MP4, AVI, MOV) - Tối đa 500MB</label>
                     <input type="file" class="form-control input-file" id="videoFile" accept=".mp4,.avi,.mov">
+                    <div id="fileInfo" class="file-info"></div>
                 </div>
             </div>
         </div>
 
         <div class="row g-2">
             <div class="col-md-3">
-                <button id="btnUpload" class="btn btn-control">Upload File</button>
+                <button id="btnUpload" class="btn btn-control">Chọn File</button>
             </div>
             <div class="col-md-3">
-                <button id="btnRun" class="btn btn-control">Run</button>
+                <button id="btnRun" class="btn btn-control" disabled>Run</button>
             </div>
             <div class="col-md-3">
-                <button id="btnCancel" class="btn btn-control">Cancel</button>
+                <button id="btnCancel" class="btn btn-control" disabled>Cancel</button>
+            </div>
+            <div class="col-md-3 d-flex align-items-center">
+                <div class="form-check form-switch ms-2">
+                    <input class="form-check-input" type="checkbox" id="overlayToggle" checked>
+                    <label class="form-check-label" for="overlayToggle">Hiển thị overlay</label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Progress Bar -->
+        <div id="progressDiv" style="display:none; margin-top:15px;">
+            <div class="row mb-2">
+                <div class="col-md-8">
+                    <small>Đang xử lý video...</small>
+                </div>
+                <div class="col-md-4 text-end">
+                    <small><span id="progressPercent">0</span>%</small>
+                </div>
+            </div>
+            <div class="progress" style="height: 20px;">
+                <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
             </div>
         </div>
     </div>
@@ -250,17 +288,75 @@
     const btnRun = document.getElementById('btnRun');
     const btnCancel = document.getElementById('btnCancel');
     const resultsList = document.getElementById('resultsList');
+    const fileInfo = document.getElementById('fileInfo');
+    const progressDiv = document.getElementById('progressDiv');
+    const progressBar = document.getElementById('progressBar');
+    const progressPercent = document.getElementById('progressPercent');
 
     let currentFile = null;
+    let currentAbortController = null;
+    const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB
+
+    // Format file size
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+    }
+
+    // Validate video file
+    function validateVideoFile(file) {
+        const validTypes = ['video/mp4', 'video/x-msvideo', 'video/quicktime'];
+        const validExtensions = ['.mp4', '.avi', '.mov'];
+        
+        const ext = '.' + file.name.split('.').pop().toLowerCase();
+        
+        if (!validExtensions.includes(ext)) {
+            return { valid: false, message: '❌ Định dạng video không hợp lệ. Chỉ chấp nhận MP4, AVI hoặc MOV.' };
+        }
+        
+        if (file.size > MAX_FILE_SIZE) {
+            return { valid: false, message: `❌ File quá lớn (${formatFileSize(file.size)}). Tối đa 500MB.` };
+        }
+        
+        return { valid: true };
+    }
 
     videoFile.addEventListener('change', () => {
         const f = videoFile.files[0];
         if (!f) return;
+
+        const validation = validateVideoFile(f);
+        if (!validation.valid) {
+            fileInfo.textContent = validation.message;
+            fileInfo.style.color = '#d9534f';
+            videoFile.value = '';
+            currentFile = null;
+            btnRun.disabled = true;
+            return;
+        }
+
+        currentFile = f;
+        fileInfo.textContent = `✓ ${f.name} (${formatFileSize(f.size)}) - Sẵn sàng xử lý`;
+        fileInfo.style.color = '#5cb85c';
+        btnRun.disabled = false;
+
         const url = URL.createObjectURL(f);
         previewVideo.src = url;
         placeholder.style.display = 'none';
         previewVideo.style.display = 'block';
-        currentFile = f;
+        // hide any previous overlay
+        if (typeof overlayAnimationId !== 'undefined' && overlayAnimationId) {
+            cancelAnimationFrame(overlayAnimationId);
+            overlayAnimationId = null;
+        }
+        if (overlay) {
+            overlay.style.display = 'none';
+            const ctx = overlay.getContext('2d');
+            if (ctx) ctx.clearRect(0, 0, overlay.width, overlay.height);
+        }
     });
 
     btnUpload.addEventListener('click', () => {
@@ -268,6 +364,13 @@
     });
 
     btnCancel.addEventListener('click', () => {
+        if (currentAbortController) {
+            currentAbortController.abort();
+        }
+        resetForm();
+    });
+
+    function resetForm() {
         videoFile.value = '';
         currentFile = null;
         previewVideo.pause();
@@ -275,67 +378,160 @@
         previewVideo.style.display = 'none';
         placeholder.style.display = 'flex';
         resultsList.innerHTML = '';
-    });
+        fileInfo.textContent = '';
+        progressDiv.style.display = 'none';
+        progressPercentElement = 0;
+        progressBar.style.width = '0%';
+        btnRun.disabled = true;
+        btnCancel.disabled = true;
+        // hide and clear overlay if active
+        if (typeof overlayAnimationId !== 'undefined' && overlayAnimationId) {
+            cancelAnimationFrame(overlayAnimationId);
+            overlayAnimationId = null;
+        }
+        if (overlay) {
+            overlay.style.display = 'none';
+            const ctx = overlay.getContext('2d');
+            if (ctx) ctx.clearRect(0, 0, overlay.width, overlay.height);
+        }
+    }
+
 
     btnRun.addEventListener('click', async (e) => {
         e.preventDefault();
+        
         if (!videoFile.files.length) { 
             alert('Vui lòng chọn file video trước.'); 
             return; 
         }
-        
-        previewVideo.play();
-        
+
         btnRun.disabled = true;
-        btnRun.innerHTML = 'Đang xử lý...';
-        resultsList.innerHTML = '<div class="alert alert-info">Video đang phát... OCR đang theo dõi và ghi nhận biển số...</div>';
+        btnCancel.disabled = false;
+        progressDiv.style.display = 'block';
+        resultsList.innerHTML = '<div class="alert alert-info"><span class="spinner-border" role="status" aria-hidden="true"></span> Đang upload và xử lý video...</div>';
+
+        // Simulate progress
+        let simulatedProgress = 0;
+        const progressInterval = setInterval(() => {
+            if (simulatedProgress < 90) {
+                simulatedProgress += Math.random() * 30;
+                if (simulatedProgress > 90) simulatedProgress = 90;
+                updateProgress(Math.floor(simulatedProgress));
+            }
+        }, 500);
 
         const form = new FormData();
         form.append('file', videoFile.files[0]);
 
+        // Start playing the original video immediately (user interaction exists)
+        try { previewVideo.play().catch(()=>{}); } catch(e){}
+
         try {
-            const res = await fetch('/api/process_video', { method: 'POST', body: form });
+            currentAbortController = new AbortController();
+            
+            const res = await fetch('/api/process_video', { 
+                method: 'POST', 
+                body: form,
+                signal: currentAbortController.signal
+            });
+
+            clearInterval(progressInterval);
+            updateProgress(95);
+
+            if (!res.ok) {
+                const errorText = await res.text();
+                throw new Error(`HTTP ${res.status}: ${errorText}`);
+            }
+
             const data = await res.json();
+
             if (!data.success) {
-                resultsList.innerHTML = '<div class="alert alert-danger">Lỗi: ' + data.message + '</div>';
+                resultsList.innerHTML = '<div class="alert alert-danger">❌ Lỗi: ' + (data.message || 'Không xác định') + '</div>';
+                progressDiv.style.display = 'none';
+                btnCancel.disabled = true;
             } else {
-                renderResults(data.plates, data.processed_video_url || data.video_url);
+                updateProgress(100);
+                
+                // Keep playing the original selected video (do not replace src)
+                placeholder.style.display = 'none';
+                previewVideo.style.display = 'block';
+
+                // If metadata available, load it and enable overlay (build per-plate timelines)
+                if (data.metadata_url) {
+                    try {
+                        const metaRes = await fetch(data.metadata_url);
+                        const metadata = await metaRes.json();
+                        setupOverlay(metadata);
+                    } catch (merr) {
+                        console.warn('Không thể tải metadata:', merr);
+                    }
+                }
+
+                setTimeout(() => {
+                    progressDiv.style.display = 'none';
+                    renderResults(data.plates, data.processed_video_url || data.video_url);
+                    btnCancel.disabled = true;
+                }, 500);
             }
         } catch (err) {
-            console.error(err);
-            resultsList.innerHTML = '<div class="alert alert-danger">Lỗi kết nối: Không thể kết nối tới server</div>';
+            clearInterval(progressInterval);
+            if (err.name === 'AbortError') {
+                resultsList.innerHTML = '<div class="alert alert-warning">⚠️ Yêu cầu bị hủy bỏ</div>';
+            } else {
+                console.error(err);
+                resultsList.innerHTML = '<div class="alert alert-danger">❌ Lỗi kết nối: ' + err.message + '</div>';
+            }
+            progressDiv.style.display = 'none';
+            btnCancel.disabled = true;
         } finally {
             btnRun.disabled = false;
-            btnRun.innerHTML = 'Run';
+            currentAbortController = null;
         }
     });
+
+    function updateProgress(percent) {
+        progressPercent.textContent = percent;
+        progressBar.style.width = percent + '%';
+    }
 
     function renderResults(plates, video_url) {
         resultsList.innerHTML = '';
         if (!plates || plates.length === 0) {
-            resultsList.innerHTML = '<div class="alert alert-warning">Không tìm thấy biển số trong video.</div>';
+            resultsList.innerHTML = '<div class="alert alert-warning">⚠️ Không tìm thấy biển số trong video.</div>';
             return;
         }
 
-        const summary = `<div class="alert alert-success mb-3">Hoàn tất! Phát hiện ${plates.length} biển số (không trùng lặp).</div>`;
+        // Deduplicate plates by `clean_id` (fallback to normalized plate text)
+        const uniqueMap = {};
+        plates.forEach(p => {
+            const key = p.clean_id || (p.clean || p.plate || '').toUpperCase();
+            if (!uniqueMap[key]) uniqueMap[key] = p;
+        });
+
+        const uniquePlates = Object.values(uniqueMap);
+        const summary = `<div class="alert alert-success mb-3">✓ Hoàn tất! Phát hiện ${uniquePlates.length} biển số (không trùng lặp).</div>`;
         resultsList.innerHTML = summary;
 
-        plates.forEach((p, idx) => {
+        uniquePlates.forEach((p, idx) => {
             const card = document.createElement('div');
             card.className = 'result-item';
 
             let statusText = 'Khác';
             let statusBg = '#f0f0f0';
+            let statusIcon = '❓';
             
             if (p.color === 'success') {
                 statusText = 'Bình thường';
                 statusBg = '#f0f8f0';
+                statusIcon = '✓';
             } else if (p.color === 'warning') {
                 statusText = 'Vi phạm';
                 statusBg = '#fff8dc';
+                statusIcon = '⚠️';
             } else if (p.color === 'danger') {
                 statusText = 'Mờ/Không rõ';
                 statusBg = '#fff0f0';
+                statusIcon = '❌';
             }
 
             card.style.backgroundColor = statusBg;
@@ -343,20 +539,20 @@
             card.innerHTML = `
                 <div class="row g-3">
                     <div class="col-md-3">
-                        <img src="${p.crop_url}" style="border: 1px solid #000000; border-radius: 0px; width:100%; height:auto; max-height:120px; object-fit:cover;">
+                        <img src="${p.crop_url || ''}" style="border: 1px solid #000000; border-radius: 0px; width:100%; height:auto; max-height:120px; object-fit:cover;">
                     </div>
                     <div class="col-md-9">
                         <div class="mb-2">
-                            <strong style="font-size:1.3em;">Biển số: ${p.plate || 'N/A'}</strong>
+                            <strong style="font-size:1.3em;">${statusIcon} Biển số: ${p.plate || 'N/A'}</strong>
                             <span style="margin-left: 10px; font-weight: 500;">${statusText}</span>
                         </div>
                         <div class="row g-2 mb-2" style="font-size: 0.9rem;">
-                            <div class="col-6"><strong>Loại xe:</strong> ${p.vehicle_type}</div>
-                            <div class="col-6"><strong>Thời điểm:</strong> ${p.timestamp}s</div>
-                            <div class="col-6"><strong>Frame:</strong> ${p.frame}</div>
-                            <div class="col-6"><strong>Độ rõ:</strong> ${p.clarity}</div>
+                            <div class="col-6"><strong>Loại xe:</strong> ${p.vehicle_type || 'N/A'}</div>
+                            <div class="col-6"><strong>Thời điểm:</strong> ${p.timestamp || 0}s</div>
+                            <div class="col-6"><strong>Frame:</strong> ${p.frame || 'N/A'}</div>
+                            <div class="col-6"><strong>Độ rõ:</strong> ${p.clarity || 'N/A'}</div>
                         </div>
-                        <div style="font-size: 0.9rem;"><strong>Chi tiết:</strong> ${p.info}</div>
+                        <div style="font-size: 0.9rem;"><strong>Chi tiết:</strong> ${p.info || 'N/A'}</div>
                         <div class="mt-3">
                             <button class="btn btn-control" style="width: auto; padding: 8px 15px; font-size: 0.9rem;">Lưu vào lịch sử</button>
                         </div>
@@ -370,14 +566,14 @@
             saveBtn.addEventListener('click', async () => {
                 saveBtn.disabled = true;
                 const originalText = saveBtn.innerHTML;
-                saveBtn.innerHTML = 'Đang lưu...';
+                saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Đang lưu...';
                 
                 try {
                     const body = { 
-                        plate: p.plate, 
-                        status: p.info, 
-                        vehicle_type: p.vehicle_type, 
-                        violations: p.info ? [p.info] : [] 
+                        plate: p.plate || '', 
+                        status: p.info || '', 
+                        vehicle_type: p.vehicle_type || '', 
+                        violations: (p.info && p.info.includes('Vi phạm')) ? [p.info] : [] 
                     };
                     const r = await fetch('/api/save_detection', { 
                         method: 'POST', 
@@ -387,16 +583,151 @@
                     const j = await r.json();
                     
                     if (j.success) {
-                        saveBtn.innerHTML = 'Đã lưu';
+                        saveBtn.innerHTML = '✓ Đã lưu';
                         saveBtn.style.opacity = '0.6';
                     } else {
-                        saveBtn.innerHTML = 'Lỗi lưu';
+                        saveBtn.innerHTML = '❌ Lỗi lưu';
                     }
                 } catch (err) {
-                    saveBtn.innerHTML = 'Lỗi kết nối';
+                    saveBtn.innerHTML = '❌ Lỗi kết nối';
                     console.error(err);
                 }
             });
+        });
+    }
+
+    // --- Overlay logic (improved scaling/position and overlay toggle) ---
+    const overlay = document.getElementById('overlayCanvas');
+    let overlayMeta = null;
+    let scaleX = 1, scaleY = 1, offsetX = 0, offsetY = 0;
+    let overlayAnimationId = null;
+    let framesByPlate = {}; // { clean: [ {time, xmin, ymin, xmax, ymax, plate, color}, ... ] }
+    const MAX_DISPLAY_AGE = 1.2; // seconds, how long to keep showing last detection
+    const overlayToggle = document.getElementById('overlayToggle');
+    let overlayEnabled = true;
+
+    overlayToggle && overlayToggle.addEventListener('change', (e) => {
+        overlayEnabled = e.target.checked;
+        overlay.style.display = overlayEnabled ? 'block' : 'none';
+    });
+
+    function setupOverlay(metadata) {
+        overlayMeta = metadata;
+        buildFramesByPlate(metadata);
+        overlay.style.display = overlayEnabled ? 'block' : 'none';
+        resizeOverlay();
+        if (overlayAnimationId) cancelAnimationFrame(overlayAnimationId);
+        overlayAnimationId = requestAnimationFrame(overlayLoop);
+        previewVideo.addEventListener('loadedmetadata', resizeOverlay);
+        window.addEventListener('resize', resizeOverlay);
+        previewVideo.addEventListener('play', () => { if (overlayEnabled && !overlayAnimationId) overlayAnimationId = requestAnimationFrame(overlayLoop); });
+    }
+
+    function buildFramesByPlate(metadata) {
+        framesByPlate = {};
+        if (!metadata || !metadata.frames) return;
+        try {
+            Object.keys(metadata.frames).forEach(frameKey => {
+                const dets = metadata.frames[frameKey] || [];
+                dets.forEach(d => {
+                    const t = (typeof d.time !== 'undefined') ? Number(d.time) : (Number(frameKey) / (metadata.fps || 30));
+                    const cleanId = d.clean_id || d.clean || d.plate || ('p' + Math.random().toString(36).slice(2,7));
+                    const item = { time: t, xmin: Number(d.xmin), ymin: Number(d.ymin), xmax: Number(d.xmax), ymax: Number(d.ymax), plate: d.plate, color: d.color };
+                    framesByPlate[cleanId] = framesByPlate[cleanId] || [];
+                    framesByPlate[cleanId].push(item);
+                });
+            });
+            Object.keys(framesByPlate).forEach(k => framesByPlate[k].sort((a,b) => a.time - b.time));
+        } catch (err) {
+            console.warn('Lỗi buildFramesByPlate:', err);
+            framesByPlate = {};
+        }
+    }
+
+    function resizeOverlay() {
+        if (!overlayMeta) return;
+        const videoRect = previewVideo.getBoundingClientRect();
+        const parentRect = previewVideo.parentElement.getBoundingClientRect();
+        overlay.width = videoRect.width;
+        overlay.height = videoRect.height;
+        overlay.style.width = videoRect.width + 'px';
+        overlay.style.height = videoRect.height + 'px';
+        overlay.style.left = (videoRect.left - parentRect.left) + 'px';
+        overlay.style.top = (videoRect.top - parentRect.top) + 'px';
+        // compute scale to map original video pixels to displayed area, handle letterboxing
+        const scale = Math.min(videoRect.width / overlayMeta.width, videoRect.height / overlayMeta.height);
+        const dispW = overlayMeta.width * scale;
+        const dispH = overlayMeta.height * scale;
+        offsetX = (videoRect.width - dispW) / 2;
+        offsetY = (videoRect.height - dispH) / 2;
+        scaleX = scale;
+        scaleY = scale;
+    }
+
+    function clearOverlay() {
+        const ctx = overlay.getContext('2d');
+        if (ctx) ctx.clearRect(0, 0, overlay.width, overlay.height);
+    }
+
+    function overlayLoop() {
+        if (!overlayMeta || overlay.style.display === 'none' || !overlayEnabled) {
+            overlayAnimationId = requestAnimationFrame(overlayLoop);
+            return;
+        }
+        const now = previewVideo.currentTime || 0;
+        const boxesToDraw = [];
+        Object.keys(framesByPlate).forEach(clean => {
+            const timeline = framesByPlate[clean];
+            if (!timeline || timeline.length === 0) return;
+            let lo = 0, hi = timeline.length - 1, idx = -1;
+            while (lo <= hi) {
+                const mid = Math.floor((lo + hi) / 2);
+                if (timeline[mid].time <= now) { idx = mid; lo = mid + 1; } else { hi = mid - 1; }
+            }
+            if (idx < 0) return;
+            const prev = timeline[idx];
+            const age = now - prev.time;
+            if (age > MAX_DISPLAY_AGE) return;
+            const next = (idx + 1 < timeline.length) ? timeline[idx+1] : null;
+            let box = { xmin: prev.xmin, ymin: prev.ymin, xmax: prev.xmax, ymax: prev.ymax, plate: prev.plate, color: prev.color };
+            if (next && next.time > prev.time) {
+                const dt = next.time - prev.time;
+                const frac = Math.min(1, Math.max(0, (now - prev.time) / dt));
+                box.xmin = prev.xmin + (next.xmin - prev.xmin) * frac;
+                box.ymin = prev.ymin + (next.ymin - prev.ymin) * frac;
+                box.xmax = prev.xmax + (next.xmax - prev.xmax) * frac;
+                box.ymax = prev.ymax + (next.ymax - prev.ymax) * frac;
+            }
+            boxesToDraw.push(box);
+        });
+
+        drawDetections(boxesToDraw);
+        overlayAnimationId = requestAnimationFrame(overlayLoop);
+    }
+
+    function drawDetections(dets) {
+        const ctx = overlay.getContext('2d');
+        if (!ctx) return;
+        ctx.clearRect(0, 0, overlay.width, overlay.height);
+        ctx.lineWidth = 2;
+        ctx.font = '16px Arial';
+        dets.forEach(d => {
+            let color = '#00b300';
+            if (d.color === 'warning') color = '#ffcc00';
+            if (d.color === 'danger') color = '#ff3333';
+            ctx.strokeStyle = color;
+            ctx.fillStyle = color;
+            const x = offsetX + d.xmin * scaleX;
+            const y = offsetY + d.ymin * scaleY;
+            const w = (d.xmax - d.xmin) * scaleX;
+            const h = (d.ymax - d.ymin) * scaleY;
+            ctx.strokeRect(x, y, w, h);
+            const label = d.plate || '';
+            if (label) {
+                const txtX = x + 4;
+                const txtY = y + 16;
+                ctx.fillText(label, txtX, txtY);
+            }
         });
     }
 </script>
